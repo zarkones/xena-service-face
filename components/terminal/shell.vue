@@ -23,13 +23,12 @@ import Vue from 'vue'
 
 import * as Service from '@/src/services'
 
-import jwt from 'jsonwebtoken'
-
 import { mapGetters } from 'vuex'
 
 export default Vue.extend({
   data: () => ({
     shellCode: '',
+    encryptPayload: false,
   }),
 
   props: {
@@ -41,20 +40,18 @@ export default Vue.extend({
   computed: {
     ...mapGetters([
       'getPrivateKey',
+      'getAtilaHost',
     ])
   },
 
   methods: {
     async issueMessages () {
-      const message = jwt.sign(
-        Buffer.from(this.shellCode).toString('base64'),
-        this.getPrivateKey,
-        { algorithm: 'RS512' },
-      )
+      const message = await Service.Crypto.sign(this.getPrivateKey, { shell: this.shellCode })
 
-      const createdMessages = await Promise.all(this.clients.map(client => {
-        return Service.Atila.publishMessage(this.$axios, client.id, 'shell', message)
-      }))
+      await new Service.Atila(this.$axios, this.getAtilaHost).publishMessage(this.clients[0].id, 'instruction', message)
+      // const createdMessages = await Promise.all(this.clients.map(client => {
+      //   return Service.Atila.publishMessage(this.$axios, client.id, 'instruction', message)
+      // }))
 
       this.shellCode = ''
     }

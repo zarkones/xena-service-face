@@ -8,16 +8,20 @@
       '
     >
       <v-card-text>
-        {{ message.content }}
+        {{ message.content.shell }}
       </v-card-text>
 
       <div
         v-for = 'replyMessage in replies'
         :key = 'replyMessage.id'
+        class = '
+          pa-4
+        '
       >
-        <MessageDisplay
+        {{ replyMessage }}
+        <!--MessageDisplay
           :message = 'replyMessage'
-        />
+        /-->
       </div>
     </v-card>
   </div>
@@ -25,6 +29,8 @@
 
 <script lang = 'ts'>
 import Vue from 'vue'
+
+import { mapGetters } from 'vuex'
 
 export default Vue.extend({
   name: 'MessageDisplay',
@@ -37,10 +43,16 @@ export default Vue.extend({
     replies: [] as any[],
   }),
 
+  computed: {
+    ...mapGetters([
+      'getPrivateKey',
+    ])
+  },
+
   props: {
     message: {
       required: true,
-    }
+    },
   },
 
   methods: {
@@ -48,7 +60,7 @@ export default Vue.extend({
 
   mounted () {
     if (this.message?.replies?.length)
-      this.replies = this.message.replies.map(message => ({ ...message, content: Buffer.from(message.content, 'base64') }))
+      this.replies = this.message.replies
   },
 })
 </script>

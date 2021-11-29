@@ -1,4 +1,5 @@
 import { NuxtAxiosInstance } from '@nuxtjs/axios'
+import Crypto from './Crypto'
 
 type Message = {
   id: string
@@ -10,16 +11,23 @@ type Message = {
   replies: Message[]
 }
 
-export default new class Atila {
-  public readonly axios: NuxtAxiosInstance
+type Client = {
+  id: string
+  publicKey: string
+}
 
-  constructor (axios?: NuxtAxiosInstance) {
+export default class Atila {
+  public readonly axios: NuxtAxiosInstance
+  public baseURL: string
+
+  constructor (axios: NuxtAxiosInstance, baseURL: string) {
     this.axios = axios
+    this.baseURL = baseURL
   }
 
-  public getCount = (axios: NuxtAxiosInstance) => axios({
+  public getCount = () => this.axios({
       method: 'GET',
-      url: `${process.env.XENA_ATILA_HOST}/clients/stats/count`,
+      url: `${this.baseURL}/clients/stats/count`,
     })
     .catch(err => console.warn(err))
     .then(resp => {
@@ -27,19 +35,32 @@ export default new class Atila {
         return resp.data as number[]
     })
 
-  public getClients = (axios: NuxtAxiosInstance) => axios({
+  public getClient = (id: string) => this.axios({
       method: 'GET',
-      url: `${process.env.XENA_ATILA_HOST}/clients`,
+      url: `${this.baseURL}/clients/${id}`,
+      params: {
+        status: 'ALIVE',
+      }
     })
     .catch(err => console.warn(err))
     .then(resp => {
       if (resp)
-        return resp.data
+        return resp.data as Client
     })
 
-  public fetchMessages = (axios: NuxtAxiosInstance, clientId: string, withReplies?: boolean) => axios({
+  public getClients = () => this.axios({
       method: 'GET',
-      url: `${process.env.XENA_ATILA_HOST}/messages`,
+      url: `${this.baseURL}/clients`,
+    })
+    .catch(err => console.warn(err))
+    .then(resp => {
+      if (resp)
+        return resp.data as Client[]
+    })
+
+  public fetchMessages = (clientId: string, verificationKey: string, clientVerificationKey: string, withReplies?: boolean) => this.axios({
+      method: 'GET',
+      url: `${this.baseURL}/messages`,
       params: {
         clientId,
         withReplies,
@@ -47,13 +68,17 @@ export default new class Atila {
     })
     .catch(err => console.warn(err))
     .then(resp => {
-      if (resp)
-        return resp.data as Message[]
+      if (resp && resp.data)
+        return (resp.data as Message[]).map(message => ({
+          ...message,
+          content: Crypto.verify(verificationKey, message.content),
+          replies: message.replies.map(reply => Crypto.verify(clientVerificationKey, reply.content)),
+        }))
     })
 
-  public publishMessage = (axios: NuxtAxiosInstance, clientId: string, subject: string, content: string) => axios({
+  public publishMessage = (clientId: string, subject: string, content: string) => this.axios({
       method: 'POST',
-      url: `${process.env.XENA_ATILA_HOST}/messages`,
+      url: `${this.baseURL}/messages`,
       data: {
         to: clientId,
         subject,
