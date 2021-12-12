@@ -1,19 +1,29 @@
 import { NuxtAxiosInstance } from '@nuxtjs/axios'
 
-export type BuildTemplate = 'XENA_APEP' | 'XENA_RA'
+export type BuildTemplate = 'XENA_BOT_RA' | 'XENA_BOT_APEP' | 'XENA_BOT_ANACONDA'
+type Configuration = {
+  template: BuildTemplate
+  atilaHost?: string
+  trustedPublicKey?: string
+}
 
 export default class Pyramid {
-  public readonly axios: NuxtAxiosInstance
-  public baseURL: string
-
-  constructor (axios: NuxtAxiosInstance, baseURL: string) {
+  constructor (
+    public readonly axios: NuxtAxiosInstance,
+    public readonly baseURL: string,
+    public readonly token: string,
+  ) {
     this.axios = axios
     this.baseURL = baseURL
+    this.token = token
   }
 
   public getBuilldProfiles = () => this.axios({
       method: 'GET',
       url: `${this.baseURL}/build-profiles`,
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+      },
     })
     .catch(err => console.warn(err))
     .then(resp => {
@@ -25,7 +35,7 @@ export default class Pyramid {
     name: string,
     description: string | null,
     gitUrl: string,
-    template: BuildTemplate,
+    config: Configuration,
   ) => this.axios({
       method: 'POST',
       url: `${this.baseURL}/build-profiles`,
@@ -33,10 +43,11 @@ export default class Pyramid {
         name,
         description,
         gitUrl,
-        config: {
-          template,
-        },
+        config,
         status: 'ENABLED'
+      },
+      headers: {
+        Authorization: `Bearer ${this.token}`,
       },
     })
     .catch(err => console.warn(err))
